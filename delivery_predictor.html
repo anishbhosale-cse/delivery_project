@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Delivery Time Predictor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: #f4f6f9;
+    color: #1f2328;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 16px 64px;
+  }
+
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 20px rgba(0,0,0,.06);
+    width: 100%;
+    max-width: 480px;
+    overflow: hidden;
+  }
+
+  /* ── Top banner ── */
+  .banner {
+    background: #1c2b4a;
+    padding: 28px 32px 24px;
+    color: #fff;
+  }
+  .banner-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .banner h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -.01em;
+  }
+  .banner p {
+    font-size: 13px;
+    color: rgba(255,255,255,.62);
+    line-height: 1.5;
+  }
+
+  /* ── Form body ── */
+  .body {
+    padding: 28px 32px 32px;
+  }
+
+  .field {
+    margin-bottom: 18px;
+  }
+  .field label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #57606a;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 6px;
+  }
+  .field label .icon { font-size: 14px; }
+
+  .field input,
+  .field select {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    color: #1f2328;
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .field input::placeholder { color: #adb5bd; }
+  .field input:focus,
+  .field select:focus {
+    outline: none;
+    border-color: #3b82d4;
+    box-shadow: 0 0 0 3px rgba(59,130,212,.13);
+  }
+
+  /* custom select arrow */
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: "▾";
+    position: absolute;
+    right: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #adb5bd;
+    pointer-events: none;
+    font-size: 13px;
+  }
+
+  /* two-column grid for selects */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+  }
+
+  /* ── Predict button ── */
+  .predict-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 13px;
+    background: #3b82d4;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    letter-spacing: .01em;
+    transition: background .15s, transform .08s;
+  }
+  .predict-btn:hover  { background: #2f6fc2; }
+  .predict-btn:active { transform: scale(.98); }
+
+  /* ── Error message ── */
+  .error-msg {
+    display: none;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #c0392b;
+    text-align: center;
+  }
+
+  /* ── Result panel ── */
+  .result {
+    display: none;
+    margin-top: 24px;
+    background: #f0f6ff;
+    border: 1.5px solid #c3daff;
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .result.visible { display: block; }
+
+  .result-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #3b82d4;
+    margin-bottom: 4px;
+  }
+  .result-time {
+    font-size: 52px;
+    font-weight: 800;
+    color: #1c2b4a;
+    line-height: 1;
+    letter-spacing: -.02em;
+  }
+  .result-time span {
+    font-size: 22px;
+    font-weight: 500;
+    color: #57606a;
+    margin-left: 5px;
+  }
+
+  .breakdown {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #d5e6ff;
+  }
+  .breakdown-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #8fa8c8;
+    margin-bottom: 8px;
+  }
+  .b-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 3px 0;
+    color: #57606a;
+  }
+  .b-row .b-val {
+    font-weight: 700;
+    font-family: "Courier New", monospace;
+    color: #1f2328;
+    font-size: 12.5px;
+  }
+  .b-row .b-val.pos { color: #2563c4; }
+  .b-row .b-val.neg { color: #c0392b; }
+  .b-row.total {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #d5e6ff;
+    font-weight: 700;
+    color: #1f2328;
+    font-size: 13.5px;
+  }
+  .b-row.total .b-val { color: #3b82d4; font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Banner -->
+  <div class="banner">
+    <span class="banner-icon">📦</span>
+    <h1>Delivery Time Predictor</h1>
+    <p>Linear Regression &nbsp;·&nbsp; R² = 0.9724 &nbsp;·&nbsp; Trained on 50 deliveries</p>
+  </div>
+
+  <!-- Form -->
+  <div class="body">
+
+    <div class="field">
+      <label><span class="icon">📍</span> Distance (km)</label>
+      <input type="number" id="distance" min="0.1" max="50" step="0.1" placeholder="e.g.  5.5"/>
+    </div>
+
+    <div class="field">
+      <label><span class="icon">🛍</span> Number of Items</label>
+      <input type="number" id="num_items" min="1" max="50" step="1" placeholder="e.g.  4"/>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label><span class="icon">🕐</span> Time of Day</label>
+        <div class="select-wrap">
+          <select id="time_of_day">
+            <option value="">Select…</option>
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening">Evening</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label><span class="icon">🌤</span> Weather</label>
+        <div class="select-wrap">
+          <select id="weather">
+            <option value="">Select…</option>
+            <option value="Sunny">Sunny</option>
+            <option value="Cloudy">Cloudy</option>
+            <option value="Rainy">Rainy</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label><span class="icon">⚡</span> Peak Hour?</label>
+      <div class="select-wrap">
+        <select id="peak_hour">
+          <option value="">Select…</option>
+          <option value="Yes">Yes — it's peak hour</option>
+          <option value="No">No — off-peak</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="predict-btn" onclick="predict()">Predict Delivery Time →</button>
+    <div class="error-msg" id="error-msg">⚠ Please fill in all 5 fields.</div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+      <div class="result-label">Estimated Delivery Time</div>
+      <div class="result-time" id="result-time">—<span>min</span></div>
+
+      <div class="breakdown">
+        <div class="breakdown-title">How it's calculated</div>
+        <div id="breakdown-rows"></div>
+      </div>
+    </div>
+
+  </div><!-- /.body -->
+</div><!-- /.card -->
+
+<script>
+const C = {
+  intercept:     20.268896,
+  Distance_km:    3.361706,
+  Num_Items:      2.012179,
+  Time_Evening:  -0.559750,
+  Time_Morning:  -0.431177,
+  Time_Night:    -0.661558,
+  Weather_Rainy:  7.150407,
+  Weather_Sunny: -1.428095,
+  Peak_Hour_Yes: 10.262355
+};
+
+function fmt(v) {
+  return (v >= 0 ? "+" : "") + v.toFixed(2);
+}
+
+function bRow(label, value, isTotal) {
+  const cls = isTotal ? "b-row total" : "b-row";
+  const valCls = isTotal ? "b-val" : (value >= 0 ? "b-val pos" : "b-val neg");
+  return `<div class="${cls}"><span>${label}</span><span class="${valCls}">${isTotal ? value.toFixed(2) + " min" : fmt(value)}</span></div>`;
+}
+
+function predict() {
+  const dist = parseFloat(document.getElementById("distance").value);
+  const items = parseFloat(document.getElementById("num_items").value);
+  const tod  = document.getElementById("time_of_day").value;
+  const wx   = document.getElementById("weather").value;
+  const pk   = document.getElementById("peak_hour").value;
+
+  const errEl = document.getElementById("error-msg");
+
+  if (!dist || !items || !tod || !wx || !pk) {
+    errEl.style.display = "block";
+    document.getElementById("result").classList.remove("visible");
+    return;
+  }
+  errEl.style.display = "none";
+
+  const dC = C.Distance_km   * dist;
+  const iC = C.Num_Items     * items;
+  const tC = (tod === "Evening" ? C.Time_Evening : 0)
+           + (tod === "Morning" ? C.Time_Morning : 0)
+           + (tod === "Night"   ? C.Time_Night   : 0);
+  const wC = (wx  === "Rainy"  ? C.Weather_Rainy : 0)
+           + (wx  === "Sunny"  ? C.Weather_Sunny : 0);
+  const pC = pk === "Yes" ? C.Peak_Hour_Yes : 0;
+  const total = C.intercept + dC + iC + tC + wC + pC;
+
+  document.getElementById("result-time").innerHTML =
+    `${total.toFixed(1)}<span> min</span>`;
+
+  document.getElementById("breakdown-rows").innerHTML =
+    bRow("Base (intercept)",            C.intercept, false) +
+    bRow(`Distance  ${dist} km`,        dC,          false) +
+    bRow(`Items  ×${items}`,            iC,          false) +
+    bRow(`Time of Day  (${tod})`,       tC,          false) +
+    bRow(`Weather  (${wx})`,            wC,          false) +
+    bRow(`Peak Hour  (${pk})`,          pC,          false) +
+    bRow("Predicted Total",             total,       true);
+
+  document.getElementById("result").classList.add("visible");
+}
+
+document.querySelectorAll("input, select").forEach(el =>
+  el.addEventListener("keydown", e => { if (e.key === "Enter") predict(); })
+);
+</script>
+</body>
+</html>
